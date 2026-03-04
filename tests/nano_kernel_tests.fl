@@ -607,6 +607,167 @@ pub fn test_b6_priority_scheduling() -> TestResult {
 }
 
 // ============================================================================
+// GROUP C: HAL Layer Tests (C1-C6)
+// ============================================================================
+
+/// Test C1: UART 초기화 및 설정
+pub fn test_c1_uart_init() -> TestResult {
+    let mut result = TestResult::new("C1: UART Init");
+
+    let mut uart = UartDriver::new(115200);
+
+    // UART 초기화
+    let success = uart.init();
+    result.assert_true(success, "UART init must succeed");
+
+    // 상태 검증
+    result.assert_true(
+        uart.state.initialized,
+        "UART must be initialized"
+    );
+
+    result.assert_true(
+        validate_uart_initialization(&uart.state),
+        "UART state must be valid"
+    );
+
+    result.finalize();
+    result
+}
+
+/// Test C2: UART 송수신 (바이트)
+pub fn test_c2_uart_send_recv() -> TestResult {
+    let mut result = TestResult::new("C2: UART Send/Recv");
+
+    let mut uart = UartDriver::new(115200);
+    uart.init();
+
+    // 바이트 송신
+    let sent = uart.send_byte(b'A');
+    result.assert_true(sent, "Send byte must succeed");
+
+    // 송신 통계
+    let (bytes_sent, _, _, _) = uart.stats();
+    result.assert_true(bytes_sent >= 1, "Bytes sent must be > 0");
+
+    result.finalize();
+    result
+}
+
+/// Test C3: UART 처리량 > 115200 bps (무관용)
+pub fn test_c3_uart_throughput() -> TestResult {
+    let mut result = TestResult::new("C3: UART Throughput");
+
+    let uart = UartDriver::new(115200);
+
+    // 처리량 확인
+    let throughput = uart.throughput();
+    result.assert_true(
+        throughput >= 115200,
+        "Throughput must be >= 115200 bps"
+    );
+
+    // 무관용 검증
+    result.assert_true(
+        uart.meets_throughput_target(),
+        "Must meet throughput target"
+    );
+
+    result.assert_true(
+        validate_uart_throughput(throughput),
+        "Throughput validation must pass"
+    );
+
+    result.finalize();
+    result
+}
+
+/// Test C4: 프레임버퍼 초기화 및 설정
+pub fn test_c4_framebuffer_init() -> TestResult {
+    let mut result = TestResult::new("C4: Framebuffer Init");
+
+    let mut fb = FramebufferDriver::default_800x480();
+
+    // 프레임버퍼 초기화
+    let success = fb.init(0xC0000000u64);
+    result.assert_true(success, "Framebuffer init must succeed");
+
+    // 해상도 확인
+    result.assert_true(
+        fb.state.width == 800,
+        "Width must be 800"
+    );
+    result.assert_true(
+        fb.state.height == 480,
+        "Height must be 480"
+    );
+
+    result.finalize();
+    result
+}
+
+/// Test C5: 프레임버퍼 성능 > 30 fps (무관용)
+pub fn test_c5_framebuffer_fps() -> TestResult {
+    let mut result = TestResult::new("C5: Framebuffer FPS");
+
+    let mut fb = FramebufferDriver::default_800x480();
+    fb.init(0xC0000000u64);
+
+    // FPS 확인
+    let fps = fb.get_fps();
+    result.assert_true(
+        fps >= 30.0,
+        "FPS must be >= 30"
+    );
+
+    // 무관용 검증
+    result.assert_true(
+        fb.meets_fps_target(),
+        "Must meet FPS target"
+    );
+
+    result.assert_true(
+        validate_framebuffer_fps(fps),
+        "FPS validation must pass"
+    );
+
+    result.finalize();
+    result
+}
+
+/// Test C6: GPIO 핀 설정 및 읽기/쓰기
+pub fn test_c6_gpio_io() -> TestResult {
+    let mut result = TestResult::new("C6: GPIO I/O");
+
+    let mut gpio = GpioDriver::new();
+    gpio.init();
+
+    // GPIO 핀 4를 Output으로 설정
+    let success = gpio.set_mode(4, GpioMode::Output);
+    result.assert_true(success, "Set mode must succeed");
+
+    // GPIO 핀 쓰기
+    let write_success = gpio.write(4, true);  // High
+    result.assert_true(write_success, "Write high must succeed");
+
+    // GPIO 핀 읽기
+    let read_value = gpio.read(4);
+    result.assert_true(read_value.is_some(), "Read must succeed");
+
+    if let Some(val) = read_value {
+        result.assert_true(val == true, "Read value must match written value");
+    }
+
+    // 통계 확인
+    let (read_count, write_count, _) = gpio.stats();
+    result.assert_true(read_count >= 1, "Read count must be >= 1");
+    result.assert_true(write_count >= 1, "Write count must be >= 1");
+
+    result.finalize();
+    result
+}
+
+// ============================================================================
 // 통합 테스트 실행기
 // ============================================================================
 
@@ -636,6 +797,14 @@ pub fn run_all_tests() -> Vec<TestResult> {
     results.push(test_b4_syscall_dispatch());
     results.push(test_b5_vector_table());
     results.push(test_b6_priority_scheduling());
+
+    // Group C: HAL Layer (6개)
+    results.push(test_c1_uart_init());
+    results.push(test_c2_uart_send_recv());
+    results.push(test_c3_uart_throughput());
+    results.push(test_c4_framebuffer_init());
+    results.push(test_c5_framebuffer_fps());
+    results.push(test_c6_gpio_io());
 
     results
 }
