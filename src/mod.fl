@@ -52,3 +52,20 @@ pub use i2c::{
     I2CSpeed, I2CStatus, I2CDeviceAddress, I2CTransaction, I2CBus, I2CManager
 }
 
+// ============ Hypervisor: Stage 2 MMU ============
+pub mod hypervisor
+pub mod vttbr
+pub mod guest_memory
+
+pub use hypervisor::{
+    VTTBR, TranslationGranule, Stage2PTE, Stage2PageTable, GuestAddressSpace
+}
+
+pub use vttbr::{
+    VTTBRRegister, VTTBRPool, VTTBRContextSwitch
+}
+
+pub use guest_memory::{
+    GuestMemoryRegion, GuestMemoryAllocator, MemoryAccessAudit
+}
+
