@@ -93,3 +93,15 @@ pub use linux_entry::{
     LinuxBootRegisters, DeviceTreeBlob, KernelEntryHandler, LinuxBootSequence
 }
 
+// ============ Hypervisor: IOMMU (I/O Device Isolation) ============
+pub mod iommu
+pub mod dma_engine
+
+pub use iommu::{
+    IOVAEntry, DeviceDomain, DMARequest, DMAAccessType, IOMMUController, IOVAGranule
+}
+
+pub use dma_engine::{
+    DeviceType, DMAEndpoint, DMATransaction, DMAController, CoherencyManager
+}
+
