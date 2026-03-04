@@ -81,3 +81,15 @@ pub use timer::{
     VirtualTimer, VirtualTimerManager, TimerType
 }
 
+// ============ Hypervisor: Linux Kernel Loading ============
+pub mod linux_boot
+pub mod linux_entry
+
+pub use linux_boot::{
+    ELFHeader, ELFClass, ELFEndianness, ELFSegment, SegmentType, KernelImage, LinuxBootConfig, KernelLoader
+}
+
+pub use linux_entry::{
+    LinuxBootRegisters, DeviceTreeBlob, KernelEntryHandler, LinuxBootSequence
+}
+
