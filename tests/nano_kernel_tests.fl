@@ -415,6 +415,198 @@ pub fn test_m6_region_allocator() -> TestResult {
 }
 
 // ============================================================================
+// GROUP B: Core Layer Tests (B1-B6)
+// ============================================================================
+
+/// Test B1: 태스크 생성 및 상태 관리
+pub fn test_b1_task_creation() -> TestResult {
+    let mut result = TestResult::new("B1: Task Creation");
+
+    let mut task_mgr = TaskManager::new(10);
+
+    // 태스크 생성
+    let tid1 = task_mgr.create_task(100);  // Priority 100
+    result.assert_true(tid1.is_some(), "Task creation must succeed");
+
+    if let Some(tid) = tid1 {
+        // 태스크 존재 여부 확인
+        let task = task_mgr.get_task(tid);
+        result.assert_true(task.is_some(), "Task must exist");
+
+        // 태스크 상태 확인
+        if let Some(t) = task {
+            result.assert_true(
+                t.state == TaskState::Ready,
+                "New task must be in Ready state"
+            );
+            result.assert_true(
+                validate_task_id(t.tid),
+                "Task ID must be valid"
+            );
+        }
+    }
+
+    result.finalize();
+    result
+}
+
+/// Test B2: 라운드로빈 스케줄링
+pub fn test_b2_round_robin_scheduling() -> TestResult {
+    let mut result = TestResult::new("B2: Round-Robin Scheduling");
+
+    let mut scheduler = NanoScheduler::new();
+
+    // 3개 태스크를 Ready 큐에 추가
+    result.assert_true(scheduler.enqueue_task(1), "Enqueue task 1");
+    result.assert_true(scheduler.enqueue_task(2), "Enqueue task 2");
+    result.assert_true(scheduler.enqueue_task(3), "Enqueue task 3");
+
+    // Ready 큐 크기 확인
+    result.assert_true(
+        scheduler.ready_count() == 3,
+        "Ready queue must have 3 tasks"
+    );
+
+    // 첫 번째 스케줄
+    let tid1 = scheduler.schedule_next();
+    result.assert_true(tid1 == 1, "First scheduled task should be 1");
+
+    // 두 번째 스케줄 (Round-Robin)
+    let tid2 = scheduler.schedule_next();
+    result.assert_true(tid2 == 2, "Second scheduled task should be 2");
+
+    // 통계 확인
+    let (current, _, total_sched, ctx_switches, _) = scheduler.stats();
+    result.assert_true(
+        total_sched == 2,
+        "Total scheduled must be 2"
+    );
+
+    result.finalize();
+    result
+}
+
+/// Test B3: 컨텍스트 스위칭 지연 (< 10µs)
+pub fn test_b3_context_switch_latency() -> TestResult {
+    let mut result = TestResult::new("B3: Context Switch Latency");
+
+    let mut ctx_switcher = ContextSwitcher::new();
+
+    // 컨텍스트 생성
+    let mut ctx1 = Arm64Context::new();
+    ctx1.sp_el1 = 0x80010000u64;
+    ctx1.elr_el1 = 0x80001000u64;
+
+    let mut ctx2 = Arm64Context::new();
+    ctx2.sp_el1 = 0x80020000u64;
+    ctx2.elr_el1 = 0x80002000u64;
+
+    // 컨텍스트 스위치
+    let success = ctx_switcher.switch_context(&mut ctx1, &mut ctx2);
+    result.assert_true(success, "Context switch must succeed");
+
+    // 스위치 지연 검증 (< 10µs = 10,000ns)
+    let avg_ns = ctx_switcher.avg_switch_ns();
+    result.assert_true(
+        validate_context_switch_latency(avg_ns),
+        "Switch latency must be < 10µs"
+    );
+
+    // 최대 지연 확인
+    let (_, _, min_ns, max_ns) = ctx_switcher.stats();
+    result.assert_true(
+        max_ns < 10000,
+        "Max switch latency must be < 10µs"
+    );
+
+    result.finalize();
+    result
+}
+
+/// Test B4: 예외 핸들러 및 시스콜 디스패치
+pub fn test_b4_syscall_dispatch() -> TestResult {
+    let mut result = TestResult::new("B4: Syscall Dispatch");
+
+    let mut exc_handler = ExceptionHandler::new();
+
+    // SysWrite 시스콜 프레임 생성
+    let mut frame = ExceptionFrame::new();
+    frame.exc_type = ExceptionType::SyncEl1;
+    frame.esr_el1 = 0x56000000u64;  // SVC ESR
+    frame.elr_el1 = 0x80001000u64;
+    frame.x0 = 0;  // SysWrite 번호
+    frame.x2 = 100;  // 쓸 바이트 수
+
+    // 시스콜 실행
+    let result_val = exc_handler.handle_syscall(&frame);
+    result.assert_true(result_val == 100, "SysWrite should return 100");
+
+    // 통계 확인
+    let (_, sync_cnt, _, _, _, svc_cnt) = exc_handler.stats();
+    result.assert_true(svc_cnt == 1, "SVC count must be 1");
+
+    result.finalize();
+    result
+}
+
+/// Test B5: 벡터 테이블 설정
+pub fn test_b5_vector_table() -> TestResult {
+    let mut result = TestResult::new("B5: Vector Table");
+
+    let mut vt = VectorTable::new(0xFFFF000000000000u64);
+
+    // 핸들러 등록
+    let sync_handler = 0x80001000u64;
+    let irq_handler = 0x80002000u64;
+
+    result.assert_true(
+        vt.set_handler(ExceptionType::SyncEl1, sync_handler),
+        "Set SyncEl1 handler"
+    );
+    result.assert_true(
+        vt.set_handler(ExceptionType::IrqEl1, irq_handler),
+        "Set IrqEl1 handler"
+    );
+
+    // 핸들러 조회
+    let sync_h = vt.get_handler(ExceptionType::SyncEl1);
+    result.assert_true(
+        sync_h == Some(sync_handler),
+        "Sync handler must match"
+    );
+
+    result.finalize();
+    result
+}
+
+/// Test B6: 멀티 태스크 우선순위 스케줄링
+pub fn test_b6_priority_scheduling() -> TestResult {
+    let mut result = TestResult::new("B6: Priority Scheduling");
+
+    let mut pri_scheduler = PriorityQueueScheduler::new();
+
+    // 우선순위가 다른 태스크 추가
+    result.assert_true(
+        pri_scheduler.enqueue_with_priority(1, 50),  // 낮은 우선순위
+        "Enqueue task 1 at priority 50"
+    );
+    result.assert_true(
+        pri_scheduler.enqueue_with_priority(2, 200),  // 높은 우선순위
+        "Enqueue task 2 at priority 200"
+    );
+
+    // 가장 높은 우선순위 태스크가 먼저 스케줄되어야 함
+    let next_tid = pri_scheduler.schedule_next();
+    result.assert_true(
+        next_tid == 2,
+        "Highest priority task (2) should be scheduled first"
+    );
+
+    result.finalize();
+    result
+}
+
+// ============================================================================
 // 통합 테스트 실행기
 // ============================================================================
 
@@ -436,6 +628,14 @@ pub fn run_all_tests() -> Vec<TestResult> {
     results.push(test_m4_page_free());
     results.push(test_m5_memory_pool_limit());
     results.push(test_m6_region_allocator());
+
+    // Group B: Core Layer (6개)
+    results.push(test_b1_task_creation());
+    results.push(test_b2_round_robin_scheduling());
+    results.push(test_b3_context_switch_latency());
+    results.push(test_b4_syscall_dispatch());
+    results.push(test_b5_vector_table());
+    results.push(test_b6_priority_scheduling());
 
     results
 }
