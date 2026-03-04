@@ -120,6 +120,7 @@ pub use android_runtime::{
 // ============ Math & Graphics (Phase 3.1: TTF Parser) ============
 pub mod math
 pub mod sdf_engine
+pub mod ttf_parser
 
 pub use math::{
     FixedPoint, Vec2FP, QuadraticBezier, CubicSolver, BezierDistance
@@ -127,5 +128,10 @@ pub use math::{
 
 pub use sdf_engine::{
     SDFSampler, ContourDetector, DistanceField, SDFGenerator
+}
+
+pub use ttf_parser::{
+    FontHeader, TableEntry, TableDirectory, CharacterMap, GlyphMetrics,
+    GlyphData, TTFParser
 }
 
