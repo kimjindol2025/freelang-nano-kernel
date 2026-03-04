@@ -121,6 +121,7 @@ pub use android_runtime::{
 pub mod math
 pub mod sdf_engine
 pub mod ttf_parser
+pub mod glyph_rasterizer
 
 pub use math::{
     FixedPoint, Vec2FP, QuadraticBezier, CubicSolver, BezierDistance
@@ -133,5 +134,9 @@ pub use sdf_engine::{
 pub use ttf_parser::{
     FontHeader, TableEntry, TableDirectory, CharacterMap, GlyphMetrics,
     GlyphData, TTFParser
+}
+
+pub use glyph_rasterizer::{
+    Bitmap, AntiAliasingFilter, SDFRasterizer, ScaledGlyph, GlyphRenderer
 }
 
