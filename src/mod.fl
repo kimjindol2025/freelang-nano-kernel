@@ -117,11 +117,12 @@ pub use android_runtime::{
     ProcessType, AndroidProcess, Zygote, ServiceType, SystemService, AndroidRuntime
 }
 
-// ============ Math & Graphics (Phase 3.1: TTF Parser) ============
+// ============ Math & Graphics (Phase 3.1: TTF Parser + Complete Renderer) ============
 pub mod math
 pub mod sdf_engine
 pub mod ttf_parser
 pub mod glyph_rasterizer
+pub mod font_renderer
 
 pub use math::{
     FixedPoint, Vec2FP, QuadraticBezier, CubicSolver, BezierDistance
@@ -138,5 +139,9 @@ pub use ttf_parser::{
 
 pub use glyph_rasterizer::{
     Bitmap, AntiAliasingFilter, SDFRasterizer, ScaledGlyph, GlyphRenderer
+}
+
+pub use font_renderer::{
+    GlyphCache, FontMetrics, TextLayout, FontRenderer, TextBuffer
 }
 
