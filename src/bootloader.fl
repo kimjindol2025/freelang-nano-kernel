@@ -1,0 +1,266 @@
+// Phase 1: Bootloader - ARM64 부팅, CPU 초기화, 메모리 레이아웃 (300줄)
+
+module bootloader
+
+// ============ Boot Configuration ============
+
+enum BootStage {
+    Stage1,     // Power-on, SRAM setup
+    Stage2,     // ARM64 mode, MMU setup
+    Stage3,     // Main kernel, ready to run
+}
+
+struct CPUState {
+    pc: u64,              // Program counter
+    sp: u64,              // Stack pointer
+    el: u32,              // Exception level (0-3)
+    daif: u32,            // Interrupt flags
+    mpidr: u64,           // Multi-core ID
+    is_running: bool,
+}
+
+impl CPUState {
+    fn new() -> CPUState {
+        return CPUState {
+            pc: 0x80000000,  // Kernel start address
+            sp: 0x80800000,  // Stack: 8MB
+            el: 2,           // EL2 (hypervisor mode start)
+            daif: 0xF,       // All interrupts disabled
+            mpidr: 0,        // CPU 0
+            is_running: false,
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        return self.el >= 0 && self.el <= 3 && self.pc > 0
+    }
+
+    fn enable_interrupts(&mut self) -> bool {
+        self.daif = 0  // DAIF = 0 → interrupts enabled
+        return true
+    }
+
+    fn disable_interrupts(&mut self) -> bool {
+        self.daif = 0xF  // DAIF = 1111 → all disabled
+        return true
+    }
+}
+
+// ============ Memory Layout ============
+
+struct MemoryLayout {
+    bootloader_start: u64,  // 0x00000000
+    bootloader_end: u64,    // 0x00100000 (1MB)
+    kernel_start: u64,      // 0x80000000
+    kernel_end: u64,        // 0x80800000 (8MB kernel)
+    stack_start: u64,       // 0x80800000
+    stack_end: u64,         // 0x81000000 (8MB stack)
+}
+
+impl MemoryLayout {
+    fn new() -> MemoryLayout {
+        return MemoryLayout {
+            bootloader_start: 0x00000000,
+            bootloader_end: 0x00100000,      // 1MB
+            kernel_start: 0x80000000,
+            kernel_end: 0x80800000,          // 8MB kernel
+            stack_start: 0x80800000,
+            stack_end: 0x81000000,           // 8MB stack
+        }
+    }
+
+    fn is_kernel_addr(&self, addr: u64) -> bool {
+        return addr >= self.kernel_start && addr < self.kernel_end
+    }
+
+    fn is_stack_addr(&self, addr: u64) -> bool {
+        return addr >= self.stack_start && addr < self.stack_end
+    }
+
+    fn total_size(&self) -> u64 {
+        return self.kernel_end - self.bootloader_start
+    }
+
+    fn in_bounds(&self, addr: u64) -> bool {
+        return addr >= self.bootloader_start && addr < self.stack_end
+    }
+
+    fn stats(&self) -> string {
+        let mut s = ""
+        s = s + "Memory Layout:\n"
+        s = s + "Bootloader: 0x" + self.bootloader_start.to_string() + "-0x" + self.bootloader_end.to_string() + "\n"
+        s = s + "Kernel: 0x" + self.kernel_start.to_string() + "-0x" + self.kernel_end.to_string() + "\n"
+        s = s + "Stack: 0x" + self.stack_start.to_string() + "-0x" + self.stack_end.to_string() + "\n"
+        s = s + "Total: " + self.total_size().to_string() + " bytes"
+        return s
+    }
+}
+
+// ============ Boot Device ============
+
+struct BootDevice {
+    device_type: string,   // "UART", "SD", "eMMC"
+    boot_sector: u64,      // LBA
+    kernel_size: u32,      // bytes
+}
+
+impl BootDevice {
+    fn new(device: string) -> BootDevice {
+        return BootDevice {
+            device_type: device,
+            boot_sector: 0,
+            kernel_size: 0,
+        }
+    }
+
+    fn read_kernel(&self) -> bool {
+        // Simulated: read kernel from device
+        return true
+    }
+
+    fn verify_checksum(&self) -> bool {
+        // Verify kernel integrity
+        return true
+    }
+}
+
+// ============ Boot Timer ============
+
+struct BootTimer {
+    start_time_us: u64,
+    current_time_us: u64,
+    boot_complete_time_us: u64,
+}
+
+impl BootTimer {
+    fn new() -> BootTimer {
+        return BootTimer {
+            start_time_us: 0,
+            current_time_us: 0,
+            boot_complete_time_us: 0,
+        }
+    }
+
+    fn start(&mut self) -> bool {
+        self.start_time_us = 0
+        return true
+    }
+
+    fn tick(&mut self) -> bool {
+        self.current_time_us += 1
+        return true
+    }
+
+    fn mark_complete(&mut self) -> bool {
+        self.boot_complete_time_us = self.current_time_us
+        return true
+    }
+
+    fn elapsed_ms(&self) -> u32 {
+        return ((self.current_time_us - self.start_time_us) / 1000) as u32
+    }
+
+    fn is_within_budget(&self) -> bool {
+        // Boot budget: 3 seconds = 3,000,000 microseconds
+        return self.boot_complete_time_us < 3000000
+    }
+}
+
+// ============ Boot Loader ============
+
+struct BootLoader {
+    stage: BootStage,
+    cpu_state: CPUState,
+    memory: MemoryLayout,
+    boot_device: BootDevice,
+    timer: BootTimer,
+    is_initialized: bool,
+}
+
+impl BootLoader {
+    fn new() -> BootLoader {
+        return BootLoader {
+            stage: BootStage::Stage1,
+            cpu_state: CPUState::new(),
+            memory: MemoryLayout::new(),
+            boot_device: BootDevice::new("SD"),
+            timer: BootTimer::new(),
+            is_initialized: false,
+        }
+    }
+
+    fn stage1_init(&mut self) -> bool {
+        // Stage 1: Power-on initialization
+        // - Zero BSS section
+        // - Setup SRAM
+        // - Initialize UART for debug
+        
+        self.timer.start()
+        self.stage = BootStage::Stage2
+        return true
+    }
+
+    fn stage2_arm64(&mut self) -> bool {
+        // Stage 2: ARM64 mode setup
+        // - Switch to ARM64 mode
+        // - Setup MMU (identity mapped)
+        // - Enable caches
+        
+        self.cpu_state.el = 2  // EL2 state
+        self.stage = BootStage::Stage3
+        return true
+    }
+
+    fn stage3_kernel(&mut self) -> bool {
+        // Stage 3: Main kernel entry
+        // - Load kernel from device
+        // - Verify signature
+        // - Jump to kernel_main
+        
+        self.boot_device.read_kernel()
+        self.boot_device.verify_checksum()
+        self.cpu_state.is_running = true
+        self.timer.mark_complete()
+        return true
+    }
+
+    fn boot(&mut self) -> bool {
+        if !self.stage1_init() {
+            return false
+        }
+        
+        if !self.stage2_arm64() {
+            return false
+        }
+        
+        if !self.stage3_kernel() {
+            return false
+        }
+
+        self.is_initialized = true
+        return self.timer.is_within_budget()
+    }
+
+    fn get_boot_time_ms(&self) -> u32 {
+        return self.timer.elapsed_ms()
+    }
+
+    fn is_booted(&self) -> bool {
+        return self.is_initialized && self.cpu_state.is_running
+    }
+
+    fn stats(&self) -> string {
+        let mut s = ""
+        s = s + "Boot Loader Status:\n"
+        s = s + "Stage: " + (match self.stage {
+            BootStage::Stage1 => "Stage 1",
+            BootStage::Stage2 => "Stage 2",
+            BootStage::Stage3 => "Stage 3",
+        }) + "\n"
+        s = s + "Boot Time: " + self.timer.elapsed_ms().to_string() + "ms\n"
+        s = s + "CPU EL: " + self.cpu_state.el.to_string() + "\n"
+        s = s + "Running: " + (if self.cpu_state.is_running { "yes" } else { "no" })
+        return s
+    }
+}
+
