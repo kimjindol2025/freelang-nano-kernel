@@ -1,5 +1,5 @@
-// FreeLang Nano-Kernel: Phase 1-2 - Bootloader & LCD Graphics
-// 목표: 1MB, 3초 부팅, 10배 빠른 반응
+// FreeLang Nano-Kernel: Phase 1-3 - Complete I/O & Graphics Stack
+// 목표: 1MB, 3초 부팅, 10배 빠른 LCD, 4개 디바이스 동시 제어
 
 // ============ Phase 1: Boot & Core ============
 pub mod bootloader
@@ -33,5 +33,22 @@ pub use framebuffer::{
 
 pub use graphics_core::{
     Point, Rectangle, Circle, Line, TextString, GraphicsEngine
+}
+
+// ============ Phase 3: I/O Integration ============
+pub mod gpio
+pub mod uart
+pub mod i2c
+
+pub use gpio::{
+    PortBank, GPIOPort, InterruptMode, InterruptEdge, GPIOInterrupt, DebouncedPin, GPIOManager
+}
+
+pub use uart::{
+    StopBits, Parity, FlowControl, UARTConfig, UARTPort, UARTManager
+}
+
+pub use i2c::{
+    I2CSpeed, I2CStatus, I2CDeviceAddress, I2CTransaction, I2CBus, I2CManager
 }
 
