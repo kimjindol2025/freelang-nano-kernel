@@ -105,3 +105,15 @@ pub use dma_engine::{
     DeviceType, DMAEndpoint, DMATransaction, DMAController, CoherencyManager
 }
 
+// ============ Hypervisor: Android Loading ============
+pub mod android_boot
+pub mod android_runtime
+
+pub use android_boot::{
+    AndroidBootImage, Ramdisk, RootfsEntry, InitProcess, AndroidBootloader
+}
+
+pub use android_runtime::{
+    ProcessType, AndroidProcess, Zygote, ServiceType, SystemService, AndroidRuntime
+}
+
