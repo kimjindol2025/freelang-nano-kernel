@@ -69,3 +69,15 @@ pub use guest_memory::{
     GuestMemoryRegion, GuestMemoryAllocator, MemoryAccessAudit
 }
 
+// ============ Hypervisor: Virtual Interrupt Routing ============
+pub mod virq
+pub mod timer
+
+pub use virq::{
+    VirtualIRQ, ExceptionContext, vIRQClass, TrapReason, TrapHandler, VirtualIRQController
+}
+
+pub use timer::{
+    VirtualTimer, VirtualTimerManager, TimerType
+}
+
