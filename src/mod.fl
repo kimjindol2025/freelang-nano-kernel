@@ -117,3 +117,10 @@ pub use android_runtime::{
     ProcessType, AndroidProcess, Zygote, ServiceType, SystemService, AndroidRuntime
 }
 
+// ============ Math & Graphics (Phase 3.1: TTF Parser) ============
+pub mod math
+
+pub use math::{
+    FixedPoint, Vec2FP, QuadraticBezier, CubicSolver, BezierDistance
+}
+
